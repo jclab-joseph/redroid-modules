@@ -76,6 +76,16 @@
 #include "binder_internal.h"
 #include "binder_trace.h"
 
+//#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+void *wrapped_kallsyms_lookup_name;
+
+#define KPROBE_LOOKUP 1
+#include <linux/kprobes.h>
+static struct kprobe kp = {
+	.symbol_name = "kallsyms_lookup_name"
+};
+//#endif
+
 static HLIST_HEAD(binder_deferred_list);
 static DEFINE_MUTEX(binder_deferred_lock);
 
@@ -6111,6 +6121,10 @@ static int __init binder_init(void)
 	struct binder_device *device;
 	struct hlist_node *tmp;
 	char *device_names = NULL;
+	
+	register_kprobe(&kp);
+	wrapped_kallsyms_lookup_name = kp.addr;
+	unregister_kprobe(&kp);
 
 	ret = binder_alloc_shrinker_init();
 	if (ret)

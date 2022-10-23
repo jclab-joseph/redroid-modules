@@ -28,6 +28,16 @@
 #include "ashmem.h"
 #include "deps.h"
 
+//#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+void *wrapped_kallsyms_lookup_name;
+
+#define KPROBE_LOOKUP 1
+#include <linux/kprobes.h>
+static struct kprobe kp = {
+	.symbol_name = "kallsyms_lookup_name"
+};
+//#endif
+
 #define ASHMEM_NAME_PREFIX "dev/ashmem/"
 #define ASHMEM_NAME_PREFIX_LEN (sizeof(ASHMEM_NAME_PREFIX) - 1)
 #define ASHMEM_FULL_NAME_LEN (ASHMEM_NAME_LEN + ASHMEM_NAME_PREFIX_LEN)
@@ -924,6 +934,10 @@ static struct miscdevice ashmem_misc = {
 static int __init ashmem_init(void)
 {
 	int ret = -ENOMEM;
+
+	register_kprobe(&kp);
+	wrapped_kallsyms_lookup_name = kp.addr;
+	unregister_kprobe(&kp);
 
 	ashmem_area_cachep = kmem_cache_create("ashmem_area_cache",
 					       sizeof(struct ashmem_area),
